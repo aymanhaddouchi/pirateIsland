@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Island Adventure</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700;900&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --gold:        #c9922a;
+    --gold-light:  #f0c060;
+    --gold-dim:    #7a5c2a;
+    --sea-deep:    #04111f;
+    --parchment:   #e8d5a3;
+    --parchment-dim: #a89060;
+    --frame-outer: #2a1a08;
+    --glow-gold:   rgba(201,146,42,0.35);
+    --glow-teal:   rgba(32,160,160,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--sea-deep);
+    background-image:
+      radial-gradient(ellipse 80% 60% at 50% 0%, #0d2e50 0%, transparent 70%),
+      radial-gradient(ellipse 50% 40% at 80% 80%, #071428 0%, transparent 60%);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Crimson Text', Georgia, serif;
+    color: var(--parchment);
+    animation: bgPulse 8s ease-in-out infinite alternate;
+  }
+
+  @keyframes bgPulse {
+    from { background-color: #04111f; }
+    to   { background-color: #061826; }
+  }
+
+  #game-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    animation: fadeIn 0.8s ease both;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  #game-title {
+    font-family: 'Cinzel', serif;
+    font-size: 2rem;
+    font-weight: 900;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--gold-light);
+    text-shadow: 0 0 10px var(--glow-gold), 0 0 30px var(--glow-gold), 0 2px 4px rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  #game-title span { font-size: 1.6rem; }
+
+  .divider {
+    width: 640px;
+    height: 1px;
+    background: linear-gradient(to right, transparent, var(--gold-dim), var(--gold), var(--gold-dim), transparent);
+    opacity: 0.7;
+  }
+
+  #stats-bar {
+    display: flex;
+    gap: 0;
+    background: linear-gradient(135deg, rgba(20,12,4,0.9) 0%, rgba(10,22,40,0.9) 100%);
+    border: 1px solid var(--gold-dim);
+    border-radius: 3px;
+    overflow: hidden;
+    width: 640px;
+    box-shadow: 0 0 16px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+  }
+
+  .stat {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 6px;
+    gap: 2px;
+    border-right: 1px solid rgba(122,92,42,0.3);
+    transition: background 0.2s;
+  }
+
+  .stat:last-child { border-right: none; }
+  .stat:hover { background: rgba(201,146,42,0.08); }
+  .stat-icon { font-size: 1.3rem; line-height: 1; }
+
+  .stat-label {
+    font-family: 'Cinzel', serif;
+    font-size: 0.55rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
+  }
+
+  .stat-value {
+    font-family: 'Cinzel', serif;
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--gold-light);
+    text-shadow: 0 0 8px var(--glow-gold);
+    transition: transform 0.15s, color 0.15s;
+  }
+
+  .stat-value.bump { transform: scale(1.3); color: #fff; }
+
+  #stage-container { position: relative; }
+
+  .corner {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-color: var(--gold);
+    border-style: solid;
+    opacity: 0.8;
+    z-index: 10;
+  }
+  .corner-tl { top: -4px; left: -4px;   border-width: 2px 0 0 2px; }
+  .corner-tr { top: -4px; right: -4px;  border-width: 2px 2px 0 0; }
+  .corner-bl { bottom: -4px; left: -4px;  border-width: 0 0 2px 2px; }
+  .corner-br { bottom: -4px; right: -4px; border-width: 0 2px 2px 0; }
+
+  #stage {
+    position: relative;
+    width: 640px;
+    height: 640px;
+    background-color: #061420;
+    border: 2px solid var(--gold-dim);
+    box-shadow:
+      0 0 0 5px var(--frame-outer),
+      0 0 0 7px var(--gold-dim),
+      0 0 50px rgba(0,0,0,0.9),
+      0 0 20px var(--glow-teal) inset;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+    overflow: hidden;
+  }
+
+  .cell {
+    display: block;
+    position: absolute;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  #output-box {
+    width: 640px;
+    min-height: 64px;
+    background: linear-gradient(135deg, rgba(14,8,2,0.92) 0%, rgba(8,18,32,0.92) 100%);
+    border: 1px solid rgba(122,92,42,0.5);
+    border-radius: 3px;
+    padding: 14px 20px;
+    font-family: 'Crimson Text', Georgia, serif;
+    font-size: 1.05rem;
+    font-style: italic;
+    line-height: 1.65;
+    color: var(--parchment);
+    text-align: center;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.03);
+    transition: box-shadow 0.3s;
+  }
+
+  #output-box.flash {
+    box-shadow: 0 4px 20px rgba(0,0,0,0.5), 0 0 12px var(--glow-gold), inset 0 1px 0 rgba(255,255,255,0.03);
+  }
+
+  #instructions {
+    font-family: 'Cinzel', serif;
+    font-size: 0.62rem;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(200,185,138,0.35);
+  }
+
+  #legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    width: 640px;
+    padding: 10px 0 0;
+    border-top: 1px solid rgba(122,92,42,0.2);
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.78rem;
+    color: var(--parchment-dim);
+  }
+
+  .legend-icon { font-size: 1rem; }
+
+  #timer-box {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    letter-spacing: 2px;
+    color: var(--gold-light);
+    text-shadow: 0 0 8px var(--glow-gold);
+  }
+
+  /* ── Screens ── */
+  .screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    animation: fadeIn 0.8s ease both;
+  }
+
+  .screen-title {
+    font-family: 'Cinzel', serif;
+    font-size: 2.6rem;
+    font-weight: 900;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    color: var(--gold-light);
+    text-shadow: 0 0 10px var(--glow-gold), 0 0 30px var(--glow-gold), 0 2px 4px rgba(0,0,0,0.8);
+    text-align: center;
+  }
+
+  .screen-box {
+    width: 420px;
+    background: linear-gradient(135deg, rgba(14,8,2,0.95) 0%, rgba(8,18,32,0.95) 100%);
+    border: 1px solid var(--gold-dim);
+    border-radius: 4px;
+    padding: 28px 32px;
+    font-size: 1.05rem;
+    line-height: 1.9;
+    color: var(--parchment);
+    box-shadow: 0 0 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.04);
+  }
+
+  .screen-box ul { list-style: none; padding: 0; }
+
+  .screen-box ul li {
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(122,92,42,0.15);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .screen-box ul li:last-child { border-bottom: none; }
+
+  .screen-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--sea-deep);
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    border: none;
+    border-radius: 3px;
+    padding: 14px 40px;
+    cursor: pointer;
+    box-shadow: 0 0 20px var(--glow-gold);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+
+  .screen-btn:hover { transform: scale(1.05); box-shadow: 0 0 30px var(--glow-gold); }
+
+  .gameover-title {
+    font-family: 'Cinzel', serif;
+    font-size: 3rem;
+    font-weight: 900;
+    letter-spacing: 8px;
+    text-transform: uppercase;
+    color: #e03030;
+    text-shadow: 0 0 10px rgba(220,50,50,0.7), 0 0 30px rgba(220,50,50,0.4), 0 2px 4px rgba(0,0,0,0.9);
+    text-align: center;
+  }
+
+  /* ── Level selector ── */
+  #level-selector {
+    display: flex;
+    gap: 12px;
+    margin-top: 8px;
+  }
+
+  .level-btn {
+    font-family: 'Cinzel', serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 10px 20px;
+    border-radius: 3px;
+    border: 2px solid var(--gold-dim);
+    background: transparent;
+    color: var(--parchment-dim);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .level-btn:hover {
+    border-color: var(--gold-light);
+    color: var(--gold-light);
+    background: rgba(201,146,42,0.08);
+  }
+
+  .level-btn.selected {
+    background: linear-gradient(135deg, var(--gold-light), var(--gold));
+    color: var(--sea-deep);
+    border-color: var(--gold-light);
+    box-shadow: 0 0 16px var(--glow-gold);
+  }
+
+  #level-badge {
+    font-family: 'Cinzel', serif;
+    font-size: 0.7rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--parchment-dim);
+  }
+
+  #level-badge span { color: var(--gold-light); font-weight: 700; }
+
+  /* ── Overlay de batalla ── */
+  #battle-overlay {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    z-index: 100;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.25s;
+  }
+
+  #battle-overlay.visible { opacity: 1; }
+  #battle-overlay.win  { background: rgba(4, 17, 31, 0.88); }
+  #battle-overlay.lose { background: rgba(30, 4,  4,  0.92); }
+
+  #battle-swords {
+    font-size: 3.5rem;
+    animation: swordsShake 0.35s ease infinite alternate;
+  }
+
+  @keyframes swordsShake {
+    from { transform: rotate(-12deg) scale(1);    }
+    to   { transform: rotate( 12deg) scale(1.15); }
+  }
+
+  #battle-result {
+    font-family: 'Cinzel', serif;
+    font-size: 2.2rem;
+    font-weight: 900;
+    letter-spacing: 6px;
+    text-transform: uppercase;
+    text-align: center;
+    animation: resultPop 0.4s cubic-bezier(0.36,1.6,0.64,1) both;
+  }
+
+  @keyframes resultPop {
+    from { transform: scale(0.4); opacity: 0; }
+    to   { transform: scale(1);   opacity: 1; }
+  }
+
+  #battle-overlay.win  #battle-result {
+    color: #f0c060;
+    text-shadow: 0 0 20px rgba(240,192,96,0.7), 0 0 50px rgba(240,192,96,0.3);
+  }
+
+  #battle-overlay.lose #battle-result {
+    color: #e03030;
+    text-shadow: 0 0 20px rgba(220,50,50,0.7), 0 0 50px rgba(220,50,50,0.3);
+  }
+
+  #battle-detail {
+    font-family: 'Crimson Text', Georgia, serif;
+    font-size: 1.1rem;
+    font-style: italic;
+    color: var(--parchment);
+    text-align: center;
+    padding: 0 20px;
+    opacity: 0;
+    animation: fadeInDelay 0.4s 0.3s ease both;
+  }
+
+  @keyframes fadeInDelay {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  #battle-bar-wrap {
+    width: 200px;
+    height: 6px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-top: 6px;
+    opacity: 0;
+    animation: fadeInDelay 0.3s 0.5s ease both;
+  }
+
+  #battle-bar {
+    height: 100%;
+    border-radius: 3px;
+    width: 100%;
+    transform-origin: left;
+    animation: barDrain 3s linear both;
+  }
+
+  #battle-overlay.win  #battle-bar { background: var(--gold-light); }
+  #battle-overlay.lose #battle-bar { background: #e03030; }
+
+  @keyframes barDrain {
+    from { transform: scaleX(1); }
+    to   { transform: scaleX(0); }
+  }
+</style>
+</head>
+
+<body>
+
+<!-- ── START SCREEN ── -->
+<div id="start-screen" class="screen">
+  <h1 class="screen-title">⚓ Island Adventure 🌊</h1>
+  <div class="screen-box">
+    <ul>
+      <li>🏠 <span>La teva llar apareix en un lloc aleatori. Troba-la!</span></li>
+      <li>⬆️⬇️⬅️➡️ <span>Usa les fletxes del teclat per moure el vaixell.</span></li>
+      <li>🪙 <span>Cada moviment gasta menjar. No et quedis sense!</span></li>
+      <li>🏝️ <span>A les illes pots comprar menjar amb or.</span></li>
+      <li>☠️ <span>Els pirates et poden robar or. Lluita bé!</span></li>
+      <li>🐙 <span>Fuig del monstre marí o et engolirà.</span></li>
+      <li>⭐ <span>L'experiència puja lluitant i comerciant.</span></li>
+    </ul>
+  </div>
+
+  <div id="level-selector">
+    <button class="level-btn selected" onclick="selectLevel(1)">Nivell 1</button>
+    <button class="level-btn"          onclick="selectLevel(2)">Nivell 2</button>
+    <button class="level-btn"          onclick="selectLevel(3)">Nivell 3</button>
+  </div>
+
+  <button class="screen-btn" onclick="startGame()">Començar</button>
+</div>
+
+<!-- ── END SCREEN ── -->
+<div id="end-screen" class="screen" style="display:none;">
+  <div class="gameover-title">GAME OVER</div>
+  <div class="screen-box" id="end-message" style="text-align:center;"></div>
+  <button class="screen-btn" onclick="location.reload()">Tornar a jugar</button>
+</div>
+
+<!-- ── GAME ── -->
+<div id="game-wrapper" style="display:none;">
+
+  <h1 id="game-title"><span>⚓</span> Island Adventure <span>🌊</span></h1>
+
+  <div class="divider"></div>
+
+  <div id="stats-bar">
+    <div class="stat">
+      <span class="stat-icon">🍖</span>
+      <span class="stat-label">Food</span>
+      <span class="stat-value" id="stat-food">20</span>
+    </div>
+    <div class="stat">
+      <span class="stat-icon">🪙</span>
+      <span class="stat-label">Gold</span>
+      <span class="stat-value" id="stat-gold">10</span>
+    </div>
+    <div class="stat">
+      <span class="stat-icon">⭐</span>
+      <span class="stat-label">Experience</span>
+      <span class="stat-value" id="stat-exp">0</span>
+    </div>
+  </div>
+
+  <div id="stage-container">
+    <div class="corner corner-tl"></div>
+    <div class="corner corner-tr"></div>
+    <div class="corner corner-bl"></div>
+    <div class="corner corner-br"></div>
+    <div id="stage"></div>
+    <div id="battle-overlay">
+      <div id="battle-swords">⚔️</div>
+      <div id="battle-result">VICTÒRIA</div>
+      <div id="battle-detail">Has guanyat or!</div>
+      <div id="battle-bar-wrap"><div id="battle-bar"></div></div>
+    </div>
+  </div>
+
+  <div id="output-box">Usa les fletxes per trobar el camí a casa.</div>
+
+  <div id="timer-box">⏱️ Temps: <span id="timer">0:00</span></div>
+
+  <p id="level-badge">Nivell: <span id="level-display">1</span> — 🐙 Velocitat del monstre: <span id="speed-display">1s</span></p>
+
+  <p id="instructions">↑ ↓ ← → arrow keys to navigate</p>
+
+  <div class="divider"></div>
+
+  <div id="legend">
+    <div class="legend-item"><span class="legend-icon">🚢</span> El teu vaixell</div>
+    <div class="legend-item"><span class="legend-icon">🏝️</span> Illa (comerç)</div>
+    <div class="legend-item"><span class="legend-icon">☠️</span> Pirata (lluita)</div>
+    <div class="legend-item"><span class="legend-icon">🏠</span> Llar</div>
+    <div class="legend-item"><span class="legend-icon">🐙</span> Monstre</div>
+  </div>
+
+</div>
+
+<script>
+
+var stage     = document.querySelector("#stage");
+var outputBox = document.querySelector("#output-box");
+var statFood  = document.getElementById("stat-food");
+var statGold  = document.getElementById("stat-gold");
+var statExp   = document.getElementById("stat-exp");
+
+window.addEventListener("keydown", keydownHandler, false);
+
+// ── Constants ──
+var WATER   = 0;
+var ISLAND  = 1;
+var PIRATE  = 2;
+var HOME    = 3;
+var SHIP    = 4;
+var MONSTER = 5;
+
+var UP    = 38;
+var DOWN  = 40;
+var RIGHT = 39;
+var LEFT  = 37;
+
+// ── Mapa 15x15 ──
+var SIZE    = 42;   // píxels per cel·la (15 * 42 = 630 ≈ 640px)
+var ROWS    = 15;
+var COLUMNS = 15;
+
+// ── Inicialitza mapes buits ──
+var map         = [];
+var gameObjects = [];
+
+for (var r = 0; r < ROWS; r++) {
+    map[r]         = [];
+    gameObjects[r] = [];
+    for (var c = 0; c < COLUMNS; c++) {
+        map[r][c]         = WATER;
+        gameObjects[r][c] = 0;
+    }
+}
+
+// ── Variables de partida ──
+var shipRow, shipColumn, monsterRow, monsterColumn;
+var food        = 20;
+var gold        = 10;
+var experience  = 0;
+var gameMessage = "Usa les fletxes per trobar el camí a casa.";
+
+var seconds       = 0;
+var timerInterval = null;
+var battleBlocked = false;
+
+var selectedLevel   = 1;
+var monsterInterval = null;
+
+var monsterSpeeds = {
+    1: 1000,
+    2: 750,
+    3: 500
+};
+
+// ──────────────────────────────────────────────────
+// NOVA FUNCIÓ: col·loca un element en una cel·la
+// aleatòria que estigui lliure.
+//   value  → el valor a posar (ISLAND, PIRATE, etc.)
+//   onMap  → true = escriu al mapa base,
+//             false = escriu al mapa d'objectes
+// ──────────────────────────────────────────────────
+function placeRandom(value, onMap) {
+    var row, col;
+    do {
+        row = Math.floor(Math.random() * ROWS);
+        col = Math.floor(Math.random() * COLUMNS);
+    } while (
+        (onMap  && map[row][col] !== WATER) ||
+        (!onMap && gameObjects[row][col] !== 0) ||
+        (onMap  && gameObjects[row][col] !== 0)
+    );
+    if (onMap) map[row][col] = value;
+    else       gameObjects[row][col] = value;
+    return { row: row, col: col };
+}
+
+// ── Col·loca tots els elements aleatòriament ──
+function initRandomMap() {
+    // Reinicia mapes
+    for (var r = 0; r < ROWS; r++) {
+        for (var c = 0; c < COLUMNS; c++) {
+            map[r][c]         = WATER;
+            gameObjects[r][c] = 0;
+        }
+    }
+
+    // Mapa base: illes, pirates i casa (en posicions aleatòries)
+    for (var i = 0; i < 8; i++) placeRandom(ISLAND, true);   // 8 illes
+    for (var i = 0; i < 6; i++) placeRandom(PIRATE, true);   // 6 pirates
+    placeRandom(HOME, true);                                   // 1 casa
+
+    // Objectes mòbils: vaixell i monstre
+    var shipPos    = placeRandom(SHIP,    false);
+    var monsterPos = placeRandom(MONSTER, false);
+
+    shipRow    = shipPos.row;    shipColumn    = shipPos.col;
+    monsterRow = monsterPos.row; monsterColumn = monsterPos.col;
+}
+
+// ── Inicialitza el mapa en carregar (per si render() es crida aviat) ──
+initRandomMap();
+render();
+
+function selectLevel(level) {
+    selectedLevel = level;
+    var buttons = document.querySelectorAll(".level-btn");
+    for (var i = 0; i < buttons.length; i++) {
+        buttons[i].classList.remove("selected");
+    }
+    buttons[level - 1].classList.add("selected");
+}
+
+function startGame() {
+    // Torna a generar el mapa aleatori cada partida
+    initRandomMap();
+
+    document.getElementById("start-screen").style.display = "none";
+    document.getElementById("game-wrapper").style.display = "flex";
+    document.getElementById("level-display").innerHTML = selectedLevel;
+    document.getElementById("speed-display").innerHTML = monsterSpeeds[selectedLevel] / 1000 + "s";
+    startTimer();
+    startMonsterInterval();
+    render();
+}
+
+function startTimer() {
+    timerInterval = setInterval(function() {
+        seconds++;
+        var mins = Math.floor(seconds / 60);
+        var secs = seconds % 60;
+        if (secs < 10) secs = "0" + secs;
+        document.getElementById("timer").innerHTML = mins + ":" + secs;
+    }, 1000);
+}
+
+function startMonsterInterval() {
+    var speed = monsterSpeeds[selectedLevel];
+    monsterInterval = setInterval(function() {
+        moveMonster();
+        if (gameObjects[shipRow][shipColumn] === MONSTER) {
+            endGame();
+        }
+        render();
+    }, speed);
+}
+
+function keydownHandler(event) {
+    event.preventDefault();
+    if (battleBlocked) return;
+    switch (event.keyCode) {
+        case UP:
+            if (shipRow > 0) { gameObjects[shipRow][shipColumn] = 0; shipRow--; gameObjects[shipRow][shipColumn] = SHIP; food--; }
+            break;
+        case DOWN:
+            if (shipRow < ROWS - 1) { gameObjects[shipRow][shipColumn] = 0; shipRow++; gameObjects[shipRow][shipColumn] = SHIP; food--; }
+            break;
+        case LEFT:
+            if (shipColumn > 0) { gameObjects[shipRow][shipColumn] = 0; shipColumn--; gameObjects[shipRow][shipColumn] = SHIP; food--; }
+            break;
+        case RIGHT:
+            if (shipColumn < COLUMNS - 1) { gameObjects[shipRow][shipColumn] = 0; shipColumn++; gameObjects[shipRow][shipColumn] = SHIP; food--; }
+            break;
+    }
+
+    switch (map[shipRow][shipColumn]) {
+        case WATER:  gameMessage = "Navegues per mars oberts."; break;
+        case PIRATE: fight(); break;
+        case ISLAND: trade(); break;
+        case HOME:   nextLevel(); break;
+    }
+
+    if (gameObjects[shipRow][shipColumn] === MONSTER) endGame();
+    if (food <= 0 || gold <= 0) endGame();
+
+    render();
+}
+
+function moveMonster() {
+    var MUP = 1, MDOWN = 2, MLEFT = 3, MRIGHT = 4;
+    var validDirections = [];
+
+    if (monsterRow > 0              && map[monsterRow - 1][monsterColumn] === WATER) validDirections.push(MUP);
+    if (monsterRow < ROWS - 1       && map[monsterRow + 1][monsterColumn] === WATER) validDirections.push(MDOWN);
+    if (monsterColumn > 0           && map[monsterRow][monsterColumn - 1] === WATER) validDirections.push(MLEFT);
+    if (monsterColumn < COLUMNS - 1 && map[monsterRow][monsterColumn + 1] === WATER) validDirections.push(MRIGHT);
+
+    if (validDirections.length === 0) return;
+
+    var direction = validDirections[Math.floor(Math.random() * validDirections.length)];
+    gameObjects[monsterRow][monsterColumn] = 0;
+
+    switch (direction) {
+        case MUP:    gameObjects[--monsterRow][monsterColumn]  = MONSTER; break;
+        case MDOWN:  gameObjects[++monsterRow][monsterColumn]  = MONSTER; break;
+        case MLEFT:  gameObjects[monsterRow][--monsterColumn]  = MONSTER; break;
+        case MRIGHT: gameObjects[monsterRow][++monsterColumn]  = MONSTER; break;
+    }
+}
+
+function showBattleOverlay(won, detail) {
+    var overlay = document.getElementById("battle-overlay");
+    var result  = document.getElementById("battle-result");
+    var detailEl= document.getElementById("battle-detail");
+    var bar     = document.getElementById("battle-bar");
+    var barWrap = document.getElementById("battle-bar-wrap");
+
+    overlay.className = "";
+    result.style.animation  = "none";
+    detailEl.style.animation = "none";
+    barWrap.style.animation  = "none";
+    bar.style.animation      = "none";
+
+    void overlay.offsetWidth;
+
+    overlay.classList.add("visible", won ? "win" : "lose");
+    result.textContent  = won ? "VICTÒRIA" : "DERROTA";
+    detailEl.textContent = detail;
+
+    result.style.animation  = "resultPop 0.4s cubic-bezier(0.36,1.6,0.64,1) both";
+    detailEl.style.animation = "fadeInDelay 0.4s 0.3s ease both";
+    barWrap.style.animation  = "fadeInDelay 0.3s 0.5s ease both";
+    bar.style.animation      = "barDrain 3s linear both";
+
+    battleBlocked = true;
+    setTimeout(function() {
+        overlay.classList.remove("visible", "win", "lose");
+        battleBlocked = false;
+    }, 3000);
+}
+
+function fight() {
+    var shipStrength   = Math.ceil((food + gold) / 2);
+    var pirateStrength = Math.ceil(Math.random() * shipStrength * 2);
+
+    if (pirateStrength > shipStrength) {
+        var stolenGold = Math.round(pirateStrength / 2);
+        gold -= stolenGold;
+        experience += 1;
+        gameMessage = "⚔️ Lluites i PERDS " + stolenGold + " monedes d'or."
+            + " Vaixell: " + shipStrength + " vs Pirata: " + pirateStrength;
+        showBattleOverlay(false, "Has perdut " + stolenGold + " monedes d'or...");
+    } else {
+        var pirateGold = Math.round(pirateStrength / 2);
+        gold += pirateGold;
+        experience += 2;
+        gameMessage = "⚔️ Lluites i GUANYES " + pirateGold + " monedes d'or!"
+            + " Vaixell: " + shipStrength + " vs Pirata: " + pirateStrength;
+        showBattleOverlay(true, "Has guanyat " + pirateGold + " monedes d'or!");
+    }
+}
+
+function trade() {
+    var islandFood = experience + gold;
+    var cost = Math.ceil(Math.random() * islandFood);
+
+    if (gold > cost) {
+        food += islandFood;
+        gold -= cost;
+        experience += 2;
+        gameMessage = "🏝️ Compres " + islandFood + " cocos per " + cost + " monedes d'or.";
+    } else {
+        experience += 1;
+        gameMessage = "🏝️ No tens prou or per comprar menjar aquí.";
+    }
+}
+
+function nextLevel() {
+    clearInterval(monsterInterval);
+
+    if (selectedLevel < 3) {
+        selectedLevel++;
+
+        // Reinicia posicions aleatòriament per al nou nivell
+        initRandomMap();
+
+        document.getElementById("level-display").innerHTML = selectedLevel;
+        document.getElementById("speed-display").innerHTML = monsterSpeeds[selectedLevel] / 1000 + "s";
+
+        gameMessage = "🏠 Nivell " + (selectedLevel - 1) + " superat! Ara el nivell " + selectedLevel + ". El monstre va més ràpid!";
+
+        startMonsterInterval();
+        render();
+    } else {
+        var score = food + gold + experience;
+        window.removeEventListener("keydown", keydownHandler, false);
+        clearInterval(timerInterval);
+        document.getElementById("game-wrapper").style.display = "none";
+        document.getElementById("end-message").innerHTML = "🏆 Has superat els 3 nivells! Puntuació final: " + score;
+        document.getElementById("end-screen").style.display = "flex";
+    }
+}
+
+function endGame() {
+    var endMessage = "";
+
+    if (map[shipRow][shipColumn] === HOME) {
+        var score = food + gold + experience;
+        endMessage = "🏠 Has arribat a casa viu! Puntuació final: " + score;
+    } else if (gameObjects[shipRow][shipColumn] === MONSTER) {
+        endMessage = "🐙 El teu vaixell ha estat engolit per un monstre marí!";
+    } else {
+        if (gold <= 0) endMessage = "🪙 T'has quedat sense or!";
+        else           endMessage = "🍖 T'has quedat sense menjar!";
+        endMessage += " La teva tripulació et llença per la borda!";
+    }
+
+    window.removeEventListener("keydown", keydownHandler, false);
+    clearInterval(timerInterval);
+    clearInterval(monsterInterval);
+
+    document.getElementById("game-wrapper").style.display = "none";
+    document.getElementById("end-message").innerHTML = endMessage;
+    document.getElementById("end-screen").style.display = "flex";
+}
+
+function bumpStat(el) {
+    el.classList.remove("bump");
+    void el.offsetWidth;
+    el.classList.add("bump");
+    setTimeout(function() { el.classList.remove("bump"); }, 150);
+}
+
+function flashOutput() {
+    outputBox.classList.remove("flash");
+    void outputBox.offsetWidth;
+    outputBox.classList.add("flash");
+    setTimeout(function() { outputBox.classList.remove("flash"); }, 400);
+}
+
+function render() {
+    while (stage.firstChild) stage.removeChild(stage.firstChild);
+
+    for (var row = 0; row < ROWS; row++) {
+        for (var column = 0; column < COLUMNS; column++) {
+            var cell = document.createElement("img");
+            cell.setAttribute("class", "cell");
+            cell.style.width  = SIZE + "px";
+            cell.style.height = SIZE + "px";
+            stage.appendChild(cell);
+
+            switch (map[row][column]) {
+                case WATER:  cell.src = "images/water.png";  break;
+                case ISLAND: cell.src = "images/island.png"; break;
+                case PIRATE: cell.src = "images/pirate.png"; break;
+                case HOME:   cell.src = "images/home.png";   break;
+            }
+            switch (gameObjects[row][column]) {
+                case SHIP:    cell.src = "images/ship.png";    break;
+                case MONSTER: cell.src = "images/monster.png"; break;
+            }
+
+            cell.style.top  = row    * SIZE + "px";
+            cell.style.left = column * SIZE + "px";
+        }
+    }
+
+    if (outputBox.innerHTML !== gameMessage) flashOutput();
+    outputBox.innerHTML = gameMessage;
+
+    if (statFood.textContent != food)       bumpStat(statFood);
+    if (statGold.textContent != gold)       bumpStat(statGold);
+    if (statExp.textContent  != experience) bumpStat(statExp);
+
+    statFood.textContent = food;
+    statGold.textContent = gold;
+    statExp.textContent  = experience;
+}
+
+</script>
+</body>
+</html>
